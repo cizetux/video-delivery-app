@@ -87,6 +87,44 @@ app.get("/video/:id", (req, res) => {
   `);
 });
 
+// A secret page to see all uploads
+app.get("/admin", (req, res) => {
+    const fs = require('fs');
+    const path = require('path');
+    const uploadsDir = path.join(__dirname, 'uploads');
+
+    // Read all files in the uploads folder
+    fs.readdir(uploadsDir, (err, files) => {
+        if (err) return res.send("No uploads found.");
+
+        let html = `
+            <body style="font-family:sans-serif; background:#111; color:white; padding:40px;">
+                <h1>Video Management Dashboard</h1>
+                <table border="1" style="width:100%; border-collapse:collapse;">
+                    <tr style="background:#333;">
+                        <th style="padding:10px;">File Name</th>
+                        <th style="padding:10px;">Action</th>
+                    </tr>
+        `;
+
+        files.forEach(file => {
+            const videoUrl = `${req.protocol}://${req.get('host')}/video/${file}`;
+            html += `
+                <tr>
+                    <td style="padding:10px;">${file}</td>
+                    <td style="padding:10px;">
+                        <a href="${videoUrl}" target="_blank" style="color:lightblue;">View Page</a> | 
+                        <button onclick="navigator.clipboard.writeText('${videoUrl}')">Copy Link</button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        html += `</table><br><a href="/" style="color:gray;">← Back to Upload</a></body>`;
+        res.send(html);
+    });
+});
+
 // STARTING SERVER
 app.listen(3000, () => {
   console.log("Server running on http://localhost:3000");
