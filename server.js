@@ -45,7 +45,7 @@ app.post("/upload", upload.single("video"), (req, res) => {
     createdAt: Date.now(),
   };
 
-  const videoUrl = `http://localhost:3000/video/${id}`;
+  const videoUrl = `https://video-delivery-app.onrender.com/video/${id}`;
   
   res.send(`
     <body style="font-family: sans-serif; text-align:center; padding-top:50px; background:#111; color:white;">
