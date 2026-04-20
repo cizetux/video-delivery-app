@@ -115,14 +115,13 @@ app.get("/admin", async (req, res) => {
       resource_type: "video",
       type: "upload",
       prefix: "video_delivery_app/",
+      max_results: 50 // Pull up to 50 videos
     });
 
-    // 1. Fetch usage safely
     const usage = await cloudinary.api.usage().catch(() => null);
     
-    // 2. Set defaults in case usage data is missing (the "Safe" part)
     let usedMB = "0.00";
-    let limitMB = "25000"; // Typical 25GB limit in MB
+    let limitMB = "25000"; 
     let percent = "0";
 
     if (usage && usage.storage) {
@@ -131,41 +130,62 @@ app.get("/admin", async (req, res) => {
         percent = (usage.storage.used_percent || 0).toFixed(1);
     }
 
-    let rows = result.resources.map(file => `
-        <tr style="border-bottom: 1px solid #334155;">
-          <td style="padding:15px; font-size: 0.8rem; color: #94a3b8;">${file.public_id}</td>
+    // Helper to format bytes (e.g., 1048576 -> 1.0 MB)
+    const formatBytes = (bytes) => {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    };
+
+    let rows = result.resources.map(file => {
+      const shortId = file.public_id.split('/')[1];
+      const date = new Date(file.created_at).toLocaleDateString(); // Formats date nicely
+      const size = formatBytes(file.bytes);
+
+      return `
+        <tr style="border-bottom: 1px solid #334155; font-size: 0.85rem;">
+          <td style="padding:15px; color: #f8fafc;">${shortId}</td>
+          <td style="padding:15px; color: #94a3b8;">${date}</td>
+          <td style="padding:15px; color: #94a3b8;">${size}</td>
           <td style="padding:15px; text-align:right;">
-            <a href="/video/${file.public_id.split('/')[1]}" style="color: #6366f1; text-decoration:none;">View</a>
+            <a href="/video/${shortId}" style="color: #6366f1; text-decoration:none; font-weight:600;">View</a>
           </td>
         </tr>
-    `).join('');
+      `;
+    }).join('');
 
     res.send(`
       ${UI_STYLE}
-      <div class="card" style="max-width: 700px;">
-        <h1>Cloud Management</h1>
+      <div class="card" style="max-width: 850px;"> <h1>Cloud Management</h1>
         
         <div style="background: #0f172a; padding: 20px; border-radius: 12px; margin-bottom: 30px; text-align: left; border: 1px solid #334155;">
             <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                <span style="font-size: 0.8rem; color: #94a3b8;">Storage Used</span>
+                <span style="font-size: 0.8rem; color: #94a3b8;">Total Account Storage</span>
                 <span style="font-size: 0.8rem; font-weight: bold;">${usedMB} MB / ${limitMB} MB</span>
             </div>
             <div style="width: 100%; height: 8px; background: #334155; border-radius: 4px; overflow: hidden;">
                 <div style="width: ${percent}%; height: 100%; background: var(--primary); transition: 0.5s;"></div>
             </div>
-            <p style="font-size: 0.7rem; color: #64748b; margin-top: 8px;">Cloudinary Free Tier Usage: ${percent}%</p>
         </div>
 
         <table style="width:100%; border-collapse:collapse; text-align:left;">
           <thead>
-            <tr style="color: #64748b; font-size: 0.75rem; text-transform: uppercase;">
-              <th style="padding:10px;">Public ID</th>
-              <th style="padding:10px; text-align:right;">Link</th>
+            <tr style="color: #64748b; font-size: 0.7rem; text-transform: uppercase; border-bottom: 2px solid #334155;">
+              <th style="padding:10px;">ID</th>
+              <th style="padding:10px;">Uploaded</th>
+              <th style="padding:10px;">Size</th>
+              <th style="padding:10px; text-align:right;">Action</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
         </table>
-        <br><a href="/" class="btn-secondary">← Back to Dashboard</a>
+        <br>
+        <div style="display:flex; justify-content: space-between; align-items:center;">
+           <a href="/" class="btn-secondary">← Back to Upload</a>
+           <span style="color:#64748b; font-size:0.75rem;">Showing ${result.resources.length} files</span>
+        </div>
       </div>
     `);
   } catch (error) {
