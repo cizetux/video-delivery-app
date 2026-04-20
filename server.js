@@ -111,11 +111,20 @@ app.get("/video/:videoId", (req, res) => {
 // 4. ADMIN DASHBOARD
 app.get("/admin", async (req, res) => {
   try {
+    // 1. Fetch all videos
     const result = await cloudinary.api.resources({
       resource_type: "video",
       type: "upload",
       prefix: "video_delivery_app/",
     });
+
+    // 2. Fetch your actual storage usage
+    const usage = await cloudinary.api.usage();
+    
+    // Cloudinary gives usage in bytes, let's convert to MB for humans
+    const usedMB = (usage.storage.usage / (1024 * 1024)).toFixed(2);
+    const limitMB = (usage.storage.limit / (1024 * 1024)).toFixed(2);
+    const percent = usage.storage.used_percent.toFixed(1);
 
     let rows = result.resources.map(file => `
         <tr style="border-bottom: 1px solid #334155;">
@@ -130,6 +139,18 @@ app.get("/admin", async (req, res) => {
       ${UI_STYLE}
       <div class="card" style="max-width: 700px;">
         <h1>Cloud Management</h1>
+        
+        <div style="background: #0f172a; padding: 20px; border-radius: 12px; margin-bottom: 30px; text-align: left; border: 1px solid #334155;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                <span style="font-size: 0.8rem; color: #94a3b8;">Storage Used</span>
+                <span style="font-size: 0.8rem; font-weight: bold;">${usedMB} MB / ${limitMB} MB</span>
+            </div>
+            <div style="width: 100%; height: 8px; background: #334155; border-radius: 4px; overflow: hidden;">
+                <div style="width: ${percent}%; height: 100%; background: var(--primary); transition: 0.5s;"></div>
+            </div>
+            <p style="font-size: 0.7rem; color: #64748b; margin-top: 8px;">You are using ${percent}% of your free Cloudinary credits.</p>
+        </div>
+
         <table style="width:100%; border-collapse:collapse; text-align:left;">
           <thead>
             <tr style="color: #64748b; font-size: 0.75rem; text-transform: uppercase;">
