@@ -111,20 +111,25 @@ app.get("/video/:videoId", (req, res) => {
 // 4. ADMIN DASHBOARD
 app.get("/admin", async (req, res) => {
   try {
-    // 1. Fetch all videos
     const result = await cloudinary.api.resources({
       resource_type: "video",
       type: "upload",
       prefix: "video_delivery_app/",
     });
 
-    // 2. Fetch your actual storage usage
-    const usage = await cloudinary.api.usage();
+    // 1. Fetch usage safely
+    const usage = await cloudinary.api.usage().catch(() => null);
     
-    // Cloudinary gives usage in bytes, let's convert to MB for humans
-    const usedMB = (usage.storage.usage / (1024 * 1024)).toFixed(2);
-    const limitMB = (usage.storage.limit / (1024 * 1024)).toFixed(2);
-    const percent = usage.storage.used_percent.toFixed(1);
+    // 2. Set defaults in case usage data is missing (the "Safe" part)
+    let usedMB = "0.00";
+    let limitMB = "25000"; // Typical 25GB limit in MB
+    let percent = "0";
+
+    if (usage && usage.storage) {
+        usedMB = (usage.storage.usage / (1024 * 1024)).toFixed(2);
+        limitMB = (usage.storage.limit / (1024 * 1024)).toFixed(2);
+        percent = (usage.storage.used_percent || 0).toFixed(1);
+    }
 
     let rows = result.resources.map(file => `
         <tr style="border-bottom: 1px solid #334155;">
@@ -148,7 +153,7 @@ app.get("/admin", async (req, res) => {
             <div style="width: 100%; height: 8px; background: #334155; border-radius: 4px; overflow: hidden;">
                 <div style="width: ${percent}%; height: 100%; background: var(--primary); transition: 0.5s;"></div>
             </div>
-            <p style="font-size: 0.7rem; color: #64748b; margin-top: 8px;">You are using ${percent}% of your free Cloudinary credits.</p>
+            <p style="font-size: 0.7rem; color: #64748b; margin-top: 8px;">Cloudinary Free Tier Usage: ${percent}%</p>
         </div>
 
         <table style="width:100%; border-collapse:collapse; text-align:left;">
@@ -164,6 +169,7 @@ app.get("/admin", async (req, res) => {
       </div>
     `);
   } catch (error) {
+    console.error(error);
     res.send("Admin Error: " + error.message);
   }
 });
